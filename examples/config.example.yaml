@@ -1,0 +1,145 @@
+# Echo Claude 配置文件示例
+# 复制此文件到 ~/.echo-claude/config.yaml 并根据实际情况修改
+
+# ============================================
+# 默认模型配置
+# ============================================
+default_provider: "openai"      # 提供者: openai, anthropic, deepseek, baidu, zhipu, moonshot, local
+default_model: "gpt-4"          # 模型名称，留空则使用提供者的第一个
+language: "zh-CN"               # 界面语言: zh-CN 或 en
+
+# ============================================
+# 模型提供者配置
+# ============================================
+providers:
+  # OpenAI (需要 API Key)
+  openai:
+    api_key: "sk-..."                    # 建议使用环境变量 OPENAI_API_KEY
+    base_url: "https://api.openai.com/v1"
+    models: ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"]
+    timeout: 30
+    max_retries: 3
+
+  # Anthropic Claude (需要 API Key)
+  anthropic:
+    api_key: "sk-ant-..."                # 建议使用环境变量 ANTHROPIC_API_KEY
+    base_url: "https://api.anthropic.com/v1"
+    models: ["claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"]
+    timeout: 30
+    max_retries: 3
+
+  # DeepSeek (中文友好，需要 API Key)
+  deepseek:
+    api_key: "sk-..."                    # 建议使用环境变量 DEEPSEEK_API_KEY
+    base_url: "https://api.deepseek.com/v1"
+    models: ["deepseek-chat", "deepseek-coder"]
+    timeout: 30
+    max_retries: 3
+
+  # 百度文心一言 (需要 API Key)
+  baidu:
+    api_key: "..."                       # 建议使用环境变量 BAIDU_API_KEY
+    base_url: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop"
+    models: ["ERNIE-4.0-8K", "ERNIE-3.5-8K", "ERNIE-Bot-turbo"]
+    timeout: 30
+    max_retries: 3
+
+  # 智谱 AI GLM (需要 API Key)
+  zhipu:
+    api_key: "..."                       # 建议使用环境变量 ZHIPU_API_KEY
+    base_url: "https://open.bigmodel.cn/api/paas/v4"
+    models: ["glm-5v-turbo", "glm-4", "glm-3-turbo", "chatglm_turbo"]
+    timeout: 30
+    max_retries: 3
+
+  # Moonshot (Kimi, 需要 API Key)
+  moonshot:
+    api_key: "moonshot-..."              # 建议使用环境变量 MOONSHOT_API_KEY
+    base_url: "https://api.moonshot.cn/v1"
+    models: ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"]
+    timeout: 30
+    max_retries: 3
+
+  # 本地模型 (Ollama/LM Studio/LocalAI)
+  local:
+    api_key: null                        # 本地模型通常无需 API Key
+    base_url: "http://localhost:11434"   # Ollama 默认地址
+    models: ["llama2", "codellama", "mistral", "neural-chat"]
+    timeout: 60
+    max_retries: 1
+
+# ============================================
+# 工具配置 (安全沙箱)
+# ============================================
+tool:
+  # 启用的工具列表
+  enabled: ["file_read", "file_write", "shell"]
+
+  # 安全目录白名单 (只允许这些目录的文件操作)
+  safe_dirs:
+    - "./"                    # 当前目录
+    - "~/projects"           # 用户项目目录
+    - "~/workspace"          # 工作空间
+    - "~/code"               # 代码目录
+
+  # Shell命令白名单 (只允许执行这些命令)
+  allowed_commands:
+    # 文件操作
+    - "ls"
+    - "grep"
+    - "find"
+    - "cat"
+    - "head"
+    - "tail"
+    - "wc"
+    - "diff"
+    - "stat"
+    # 编程相关
+    - "python"
+    - "python3"
+    - "pytest"
+    - "pytest3"
+    - "mypy"
+    - "black"
+    - "isort"
+    # Git
+    - "git"
+    # 系统
+    - "echo"
+    - "pwd"
+    - "which"
+    - "mkdir"
+    # 压缩
+    - "tar"
+    - "gzip"
+    - "zip"
+
+  max_shell_timeout: 30      # 最大超时时间（秒）
+  allow_shell: true          # 是否允许Shell命令
+  allow_file_write: true     # 是否允许文件写入
+
+# ============================================
+# 会话配置
+# ============================================
+session:
+  auto_save: true            # 自动保存
+  history_limit: 1000        # 历史消息条数限制
+  save_path: "~/.echo-claude/sessions"  # 会话存储路径
+  backup_count: 10           # 备份文件数量
+
+# ============================================
+# 日志配置
+# ============================================
+logging:
+  level: "INFO"              # 日志级别: DEBUG, INFO, WARNING, ERROR
+  file: "~/.echo-claude/echo-claude.log"  # 日志文件路径（可选）
+
+# ============================================
+# 显示配置
+# ============================================
+display:
+  theme: "default"           # 颜色主题 (default, dark, light)
+  show_tokens: true          # 显示Token使用情况
+  show_tool_calls: true      # 显示工具调用
+  syntax_highlighting: true  # 代码语法高亮
+  paging: false              # 是否分页显示长文本
