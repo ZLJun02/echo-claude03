@@ -25,6 +25,19 @@ except ImportError:
     pass
 
 
+def deep_update(base: Dict, updates: Dict) -> Dict:
+    """深度合并两个字典，更新嵌套结构"""
+    result = base.copy()
+    for key, value in updates.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_update(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+
+
 class ProviderConfig(BaseSettings):
     """模型提供者配置"""
     name: str
@@ -162,8 +175,10 @@ def load_config(config_path: Optional[Path] = None) -> AppConfig:
     # 从文件加载
     config = AppConfig.load_from_yaml(config_path)
 
-    # 环境变量覆盖
-    config = AppConfig(**{**config.model_dump(), **get_env_overrides()})
+    # 环境变量覆盖（深度合并）
+    env_overrides = get_env_overrides()
+    merged_data = deep_update(config.model_dump(), env_overrides)
+    config = AppConfig(**merged_data)
 
     return config
 

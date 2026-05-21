@@ -158,30 +158,38 @@ COMMAND_HELP = {
 }
 
 
+# Registry of all prompt dictionaries for get_prompt lookup
+_PROMPT_REGISTRY = {
+    "ERROR_MESSAGES": ERROR_MESSAGES,
+    "SESSION_PROMPTS": SESSION_PROMPTS,
+    "COMMAND_HELP": COMMAND_HELP,
+    "TOOL_PROMPTS": TOOL_PROMPTS,
+}
+
+
 def get_prompt(key: str, lang: str = "zh", **kwargs) -> str:
     """
-    获取提示词
+    Get a prompt by key from the prompt registry.
 
     Args:
-        key: 提示词键名，支持点号路径如 "ERROR_MESSAGES.file_not_found"
-        lang: 语言 (zh/en)
-        **kwargs: 格式化参数
+        key: Prompt key, supports dot paths like "ERROR_MESSAGES.file_not_found"
+        lang: Language (zh/en)
+        **kwargs: Formatting parameters
 
     Returns:
-        格式化后的提示词
+        Formatted prompt string, or empty string if key not found
     """
-    # 查找：module-level 变量名，支持嵌套字典查找
     keys = key.replace("'", "").replace('"', "").replace("[", ".").replace("]", "").split(".")
-    obj = globals()
+    obj = _PROMPT_REGISTRY
     try:
         for k in keys:
             if isinstance(obj, dict):
                 obj = obj.get(k, {})
             else:
-                obj = {}
-        text = obj.get(lang, obj.get("zh", "")) if isinstance(obj, dict) else str(obj)
+                return ""
+        text = obj.get(lang, obj.get("zh", "")) if isinstance(obj, dict) else ""
     except Exception:
-        text = ""
+        return ""
 
     if kwargs and text:
         try:

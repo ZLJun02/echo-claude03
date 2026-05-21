@@ -8,7 +8,7 @@ from typing import Optional
 
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal
-from textual.widgets import RichLog, Static, Input
+from textual.widgets import RichLog, Static, TextArea
 from textual.markup import escape
 from textual.binding import Binding
 
@@ -22,26 +22,26 @@ from ..utils.prompts import get_system_prompt
 class EchoClaudeTUI(App):
 
     CSS = """
-    Screen { background: #0d1f0d; layout: vertical; }
+    Screen { background: #0d4a2c; layout: vertical; }
 
     #top-row { height: 1fr; layout: horizontal; }
 
     #left-box {
         width: 78%;
-        background: #0d1f0d;
+        background: #0d4a2c;
     }
 
     #chat-log {
         height: 100%;
-        background: #0d1f0d;
+        background: #0d4a2c;
         padding: 0 1;
-        scrollbar-color: #50C878;
-        scrollbar-background: #0a1a0a;
+        scrollbar-color: #3cb371;
+        scrollbar-background: #0a3d2a;
     }
 
     #right-box {
         width: 22%;
-        background: #0a1a0a;
+        background: #0a3d2a;
         layout: vertical;
     }
 
@@ -51,7 +51,7 @@ class EchoClaudeTUI(App):
     }
 
     .section-title {
-        color: #50C878;
+        color: #3cb371;
         text-style: bold;
         height: 1;
     }
@@ -61,18 +61,18 @@ class EchoClaudeTUI(App):
     }
 
     #input-row {
-        height: 3;
-        background: #0a1a0a;
+        height: 10;
+        background: #0a3d2a;
         padding: 0 1;
     }
 
     #msg-input {
         width: 100%;
-        background: #152515;
+        background: #154b3d;
         color: #98FB98;
     }
 
-    #msg-input:focus { border: tall #50C878; }
+    #msg-input:focus { border: tall #3cb371; }
     """
 
     BINDINGS = [
@@ -104,12 +104,12 @@ class EchoClaudeTUI(App):
                     yield Static("[bold #50C878]任务[/bold #50C878]", classes="section-title")
                     yield Static("[dim #98FB98]--[/dim #98FB98]", id="task-body", classes="section-body")
         with Horizontal(id="input-row"):
-            yield Input(placeholder="输入消息，Ctrl+J 发送...", id="msg-input")
+            yield TextArea(placeholder="输入消息，Ctrl+Enter 发送（支持多行粘贴）...", id="msg-input", height=8)
 
     def on_mount(self):
         self._init_agent()
         self._show_welcome()
-        self.query_one("#msg-input", Input).focus()
+        self.query_one("#msg-input", TextArea).focus()
 
     def _init_agent(self):
         try:
@@ -159,10 +159,10 @@ class EchoClaudeTUI(App):
 
     async def _do_send(self):
         if self._is_responding: return
-        inp = self.query_one("#msg-input", Input)
-        prompt = inp.value.strip()
+        inp = self.query_one("#msg-input", TextArea)
+        prompt = inp.text.strip()
         if not prompt: return
-        inp.value = ""
+        inp.text = ""
         self._is_responding = True
         try:
             self._add_msg("user", prompt)
@@ -172,7 +172,7 @@ class EchoClaudeTUI(App):
                 await self._chat(prompt)
         finally:
             self._is_responding = False
-            self.query_one("#msg-input", Input).focus()
+            self.query_one("#msg-input", TextArea).focus()
             self.query_one("#chat-log", RichLog).scroll_end(animate=False)
 
     async def _cmd(self, cmd):
@@ -233,13 +233,13 @@ class EchoClaudeTUI(App):
             self._error(f"{e}")
             self._update_process(f"err: {e}")
 
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.input and event.input.id == "msg-input":
+    def on_input_submitted(self, event: TextArea.Submitted) -> None:
+        if event.text_area and event.text_area.id == "msg-input":
             asyncio.create_task(self._do_send())
 
     def on_key(self, event):
-        # Enter key as fallback send
-        if event.key == "enter":
+        # Ctrl+Enter to send (TextArea uses Enter for newline)
+        if event.key == "ctrl+enter":
             focused = self.focused
             if focused and focused.id == "msg-input":
                 asyncio.create_task(self._do_send())

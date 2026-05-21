@@ -42,16 +42,16 @@ def get_logger(
         console = Console(stderr=True)
         rich_handler = RichHandler(
             console=console,
-            show_time=True,
+            show_time=False,
             show_path=False,
             markup=True,
         )
-        rich_handler.setFormatter(logging.Formatter("%(message)s"))
+        rich_handler.setFormatter(logging.Formatter("[yellow]📎📎📎[/] %(message)s"))
         logger.addHandler(rich_handler)
     else:
         # 普通处理器
         formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            '📎 %(asctime)s - %(name)s - %(levelname)s - %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )
         handler = logging.StreamHandler(sys.stderr)
@@ -63,9 +63,7 @@ def get_logger(
         log_path = Path(log_file).expanduser()
         log_path.parent.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(log_path, encoding='utf-8')
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        ))
+        file_handler.setFormatter(logging.Formatter('📎📎📎 %(message)s'))
         logger.addHandler(file_handler)
 
     return logger

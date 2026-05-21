@@ -111,10 +111,7 @@ def chat(
         else:
             console.print(Markdown(str(response)))
 
-        # 保存到会话
-        if agent.session:
-            agent.session.add_message("user", prompt)
-            agent.session.add_message("assistant", str(response))
+        # 消息已由 agent.chat() 内部保存到会话
 
     except Exception as e:
         console.print(f"[bold red]❌ 错误:[/bold red] {e}")
@@ -321,7 +318,8 @@ def shell(
     """直接执行Shell命令（安全沙箱内）"""
     from .core.tools import ShellTool
     try:
-        result = ShellTool.execute(command, timeout=30)
+        tool = ShellTool()
+        result = tool.execute(command, timeout=30)
         console.print(result)
     except Exception as e:
         console.print(f"[bold red]执行失败:[/bold red] {e}")

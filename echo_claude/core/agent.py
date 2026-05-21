@@ -211,6 +211,9 @@ class Agent:
                             content=f"工具执行错误: {e}",
                             tool_call_id=tc.id,
                         ))
+                # Reset accumulated text for next iteration after tool calls
+                accumulated = ""
+                content = ""
                 continue
             else:
                 # 无工具调用，对话结束

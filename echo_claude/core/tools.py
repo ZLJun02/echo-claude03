@@ -95,9 +95,7 @@ class FileReadTool(BaseTool):
             for safe_dir in self.safe_dirs:
                 if resolved.is_relative_to(safe_dir):
                     return True
-            if ".." in str(path) or path.is_absolute():
-                return False
-            return True
+            return False
         except (ValueError, OSError):
             return False
 
@@ -286,7 +284,7 @@ class ShellTool(BaseTool):
         "chmod", "chown", "stat", "which",
         "tar", "gzip", "gunzip", "zip", "unzip",
         "awk", "sed", "sort", "uniq", "tr",
-        "xargs", "pipe", "jq", "yq",
+        "xargs", "jq", "yq",
     ]
 
     DANGEROUS_COMMANDS = [
@@ -461,32 +459,34 @@ class ToolRegistry:
 
     @classmethod
     def initialize(cls, config) -> None:
-        """初始化工具注册表（根据配置）"""
+        """Initialize tool registry based on configuration"""
         if cls._initialized:
             return
 
-        from ..config.settings import AppConfig
-
-        if isinstance(config, AppConfig):
-            cfg = config
-        else:
-            cfg = config if hasattr(config, 'tool') else None
-
-        if cfg and hasattr(cfg, 'tool'):
-            tool_cfg = cfg.tool
+        # Resolve config
+        has_tool_cfg = (
+            config is not None 
+            and hasattr(config, 'tool') 
+            and config.tool is not None
+        )
+        
+        if has_tool_cfg:
+            tool_cfg = config.tool
             safe_dirs = tool_cfg.safe_dirs
             allowed_commands = tool_cfg.allowed_commands
+            enabled_tools = tool_cfg.enabled if hasattr(tool_cfg, 'enabled') else []
         else:
             safe_dirs = ["./", "./tmp"]
             allowed_commands = ShellTool.ALLOWED_COMMANDS
+            enabled_tools = ["file_read", "file_write", "shell"]
 
-        if "file_read" in (tool_cfg.enabled if cfg and hasattr(cfg, 'tool') else ["file_read"]):
+        if "file_read" in enabled_tools:
             cls.register(FileReadTool(safe_dirs=safe_dirs))
 
-        if "file_write" in (tool_cfg.enabled if cfg and hasattr(cfg, 'tool') else ["file_write"]):
+        if "file_write" in enabled_tools:
             cls.register(FileWriteTool(safe_dirs=safe_dirs))
 
-        if "shell" in (tool_cfg.enabled if cfg and hasattr(cfg, 'tool') else ["shell"]):
+        if "shell" in enabled_tools:
             cls.register(ShellTool(
                 allowed_commands=allowed_commands,
                 working_dir=str(Path.cwd())
