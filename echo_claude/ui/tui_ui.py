@@ -98,7 +98,7 @@ class EchoClaudeTUI(App):
                 yield RichLog(id="chat-log", wrap=True, markup=True, highlight=True)
             with Vertical(id="right-box"):
                 with Vertical(classes="right-section"):
-                    yield Static("[bold #50C878]过程[/bold #50C878]", classes="section-title")
+                    yield Static("[bold #50C878]进程[/bold #50C878]", classes="section-title")
                     yield Static("[dim #98FB98]--[/dim #98FB98]", id="process-body", classes="section-body")
                 with Vertical(classes="right-section"):
                     yield Static("[bold #50C878]任务[/bold #50C878]", classes="section-title")
