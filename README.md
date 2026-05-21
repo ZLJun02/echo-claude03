@@ -1,4 +1,6 @@
 # Echo Claude
+# 回音壁 
+# 勉强可以用 后续会改进的
 
 [中文](#中文) | [English](#english)
 
