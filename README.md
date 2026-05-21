@@ -1,4 +1,4 @@
-# Echo Claude
+# Echo Claude-TUI
 # 回音壁 
 # 勉强可以用 后续会改进的
 
