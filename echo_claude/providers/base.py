@@ -4,78 +4,16 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Iterator
 import json
 
+# 使用统一的消息模型（定义在 echo_claude.core.message）
+from ..core.message import (
+    ToolFunction,
+    ToolCall,
+    Message,
+    Usage,
+    ChatResponse,
+    StreamChunk,
+)
 
-@dataclass
-class ToolFunction:
-    """工具函数定义"""
-    name: str
-    arguments: str  # JSON 字符串
-
-    def get_arguments(self) -> Dict[str, Any]:
-        """解析参数为字典"""
-        try:
-            return json.loads(self.arguments) if self.arguments else {}
-        except json.JSONDecodeError:
-            return {"raw": self.arguments}
-
-
-@dataclass
-class ToolCall:
-    """工具调用"""
-    id: str
-    function: ToolFunction
-
-
-@dataclass
-class Message:
-    """聊天消息"""
-    role: str
-    content: str
-    tool_calls: List[ToolCall] = field(default_factory=list)
-    tool_call_id: Optional[str] = None  # 用于 tool 角色的消息
-
-    def to_dict(self) -> Dict[str, Any]:
-        """转换为 API 字典格式"""
-        data: Dict[str, Any] = {"role": self.role, "content": self.content}
-        if self.tool_calls:
-            data["tool_calls"] = [
-                {
-                    "id": tc.id,
-                    "type": "function",
-                    "function": {
-                        "name": tc.function.name,
-                        "arguments": tc.function.arguments
-                    }
-                }
-                for tc in self.tool_calls
-            ]
-        if self.tool_call_id:
-            data["tool_call_id"] = self.tool_call_id
-        return data
-
-
-@dataclass
-class Usage:
-    """Token 使用情况"""
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    total_tokens: int = 0
-
-
-@dataclass
-class ChatResponse:
-    """聊天响应"""
-    content: str
-    tool_calls: List[ToolCall] = field(default_factory=list)
-    usage: Usage = field(default_factory=Usage)
-
-
-@dataclass
-class StreamChunk:
-    """流式块"""
-    content: str = ""
-    tool_calls: List[ToolCall] = field(default_factory=list)
-    finish_reason: Optional[str] = None
 
 
 class BaseProvider(ABC):

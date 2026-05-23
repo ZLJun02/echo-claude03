@@ -290,6 +290,8 @@ def tool(
     from .core.tools import ToolRegistry
 
     if action == "list":
+        # 确保工具注册表已初始化
+        ToolRegistry.initialize(get_config())
         tools = ToolRegistry.list_tools()
         table = Table(show_header=True)
         table.add_column("名称")

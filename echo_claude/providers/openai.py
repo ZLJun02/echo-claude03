@@ -34,6 +34,10 @@ class RateLimitError(ProviderError):
 class OpenAIProvider(BaseProvider):
     """OpenAI 提供者（含错误处理和自动重试）"""
 
+    def __init__(self, api_key: str, base_url: str = None, models: List[str] = None, timeout: int = 30, max_retries: int = 3, **kwargs):
+        super().__init__(api_key=api_key, base_url=base_url, models=models, timeout=timeout, max_retries=max_retries, **kwargs)
+        self._client = httpx.Client(timeout=self.timeout, follow_redirects=True)
+
     def _request_with_retry(
         self,
         method: str,
@@ -46,7 +50,7 @@ class OpenAIProvider(BaseProvider):
         last_error = None
         for attempt in range(self.max_retries + 1):
             try:
-                client = httpx.Client(timeout=self.timeout) if not stream else None
+                client = self._client
                 if stream:
                     # 流式请求不重试（已开始消费）
                     response = httpx.stream(
@@ -182,7 +186,7 @@ class OpenAIProvider(BaseProvider):
                     try:
                         data = json.loads(data_str)
                         delta = data["choices"][0]["delta"]
-                        content = delta.get("content", "")
+                        content = delta.get("content") or ""
                         tool_calls = []
                         if "tool_calls" in delta:
                             for tc in delta["tool_calls"]:

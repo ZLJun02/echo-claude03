@@ -191,9 +191,32 @@ class FileWriteTool(BaseTool):
 
     def __init__(self, safe_dirs: List[str] = None, allowed_extensions: List[str] = None):
         self.safe_dirs = [Path(d).resolve() for d in (safe_dirs or ["./", "./tmp"])]
+        # 默认排除可执行脚本扩展名以提高安全性
+        # 可执行脚本（.sh, .bat, .cmd 等）需要显式配置许可
         self.allowed_extensions = allowed_extensions or [
-            ".txt", ".py", ".js", ".ts", ".html", ".css",
-            ".json", ".yaml", ".yml", ".md", ".sh", ".bat"
+            # 源代码
+            ".txt", ".py", ".pyx", ".pyi",
+            ".js", ".jsx", ".ts", ".tsx",
+            ".java", ".kt", ".scala", ".groovy",
+            ".c", ".cpp", ".h", ".hpp", ".cc", ".cxx",
+            ".cs", ".vb", ".fs",
+            ".go", ".rs", ".dart", ".swift",
+            ".php", ".rb", ".pl", ".lua", ".r", ".m",
+            ".sql", ".graphql",
+            # 标记/模板
+            ".html", ".htm", ".xhtml",
+            ".css", ".scss", ".sass", ".less", ".styl",
+            ".md", ".rst", ".tex", ".adoc",
+            # 数据/配置
+            ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf",
+            ".csv", ".tsv", ".xml",
+            # 其他文本
+            ".log", ".gitignore", ".dockerignore",
+            ".env", ".properties",
+            # 构建文件
+            ".make", ".mk", ".cmake",
+            ".gradle", ".maven", ".pom",
+            ".razor", ".cshtml",
         ]
 
     def _check_path_safe(self, path: Path) -> bool:
@@ -277,20 +300,47 @@ class ShellTool(BaseTool):
     ]
 
     ALLOWED_COMMANDS = [
+        # 文件浏览
         "ls", "grep", "find", "cat", "head", "tail", "wc",
+        # Python
         "python", "python3", "pytest", "pytest3",
-        "git", "diff", "echo", "pwd", "cd",
-        "mkdir", "rmdir", "rm", "cp", "mv",
-        "chmod", "chown", "stat", "which",
+        # Git
+        "git", "diff",
+        # 系统信息
+        "echo", "pwd", "cd", "stat", "which",
+        # 文件操作（安全的）
+        "mkdir", "rm", "cp", "mv",  # rmdir/chmod/chown/chgrp 是危险命令，从白名单移除
+        # 压缩解压
         "tar", "gzip", "gunzip", "zip", "unzip",
-        "awk", "sed", "sort", "uniq", "tr",
-        "xargs", "jq", "yq",
+        # 文本处理
+        "awk", "sed", "sort", "uniq", "tr", "xargs",
+        # JSON/YAML处理
+        "jq", "yq",
     ]
 
     DANGEROUS_COMMANDS = [
-        "sudo", "su", "passwd", "shutdown", "reboot",
-        "rm -rf", "dd", ":(){ :|:& };:", "mkfs",
-        "del", "format", "fdisk", "> /dev/",
+        # 系统管理
+        "sudo", "su", "passwd", "shutdown", "reboot", "halt", "poweroff",
+        # 危险文件操作
+        r"rm\s+-[rf]+", "rm\s+--", "rmdir", "dd", "mkfs", "format", "fdisk",
+        # 权限修改
+        "chmod", "chown", "chgrp",
+        #  fork 炸弹
+        ":\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:",
+        # 写入设备文件
+        r">\s*/dev/", r">\s*CON", r">?\s*NUL",
+        # 网络相关（限制性）
+        "wget", "curl", "nc", "netcat", "telnet", "ssh", "scp", "rsync",
+        # 进程操作
+        "kill", "killall", "pkill", "taskkill",
+        # 服务管理
+        "systemctl", "service", "init", "rc.d",
+        # 包管理（可能安装恶意软件）
+        "apt-get", "yum", "dnf", "pip", "npm", "gem", "composer",
+        # Windows 特定危险命令
+        "del", "rd", "copy con", "format", "diskpart",
+        # 编码/混淆
+        "base64", "decode", "xxd", "hexdump",
     ]
 
     def __init__(
@@ -305,50 +355,89 @@ class ShellTool(BaseTool):
 
     def _check_command_safe(self, command: str) -> tuple[bool, str]:
         """检查命令是否安全"""
-        cmd_lower = command.lower().strip()
-
-        if not cmd_lower:
+        if not command or not command.strip():
             return False, "空命令"
 
-        # 1. 危险模式检测（大小写不敏感，含空格变体）
-        dangerous_patterns = [
-            (r"\bsudo\b", "sudo"),
-            (r"\bsu\b", "su"),
-            (r"\bpasswd\b", "passwd"),
-            (r"\bshutdown\b", "shutdown"),
-            (r"\breboot\b", "reboot"),
-            (r"\brm\s+-rf\b", "rm -rf"),
-            (r"\bdd\b", "dd"),
-            (r"\bmkfs\b", "mkfs"),
-            (r"\bformat\b", "format"),
-            (r"\bfdisk\b", "fdisk"),
-            (r">\s*/dev/", "写入块设备"),
-            (r"\bdel\b", "del"),
-            (r":\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:", "fork 炸弹"),
+        cmd_str = command.strip()
+
+        # 1. 检查敏感路径访问 (防止访问系统关键文件)
+        sensitive_paths = [
+            "/etc/passwd", "/etc/shadow", "/etc/sudoers",
+            "/etc/ssh", "/root/", "C:\\Windows\\System32",
+            "~/.ssh", "~/.aws", "~/.gnupg",
+            "/proc/", "/sys/", "/dev/", "/var/log/",
         ]
-        for pattern, name in dangerous_patterns:
-            if re.search(pattern, cmd_lower):
-                return False, f"命令包含危险操作: {name}"
+        for sp in sensitive_paths:
+            if sp in cmd_str:
+                return False, f"命令包含敏感路径访问: {sp}"
 
-        # 2. 管道和重定向中所有命令都要检查
+        # 2. 检查危险命令/模式 - 使用 DANGEROUS_COMMANDS 和白名单
+        for pattern_str in self.DANGEROUS_COMMANDS:
+            try:
+                # 将 pattern_str 作为正则表达式
+                if re.search(pattern_str, cmd_str, re.IGNORECASE):
+                    # 提取模式用于错误消息（简化）
+                    display = pattern_str[:40] + "..." if len(pattern_str) > 40 else pattern_str
+                    return False, f"命令包含危险操作: {display}"
+            except re.error:
+                # 正则无效，退回到简单子串检查
+                if pattern_str.lower() in cmd_str.lower():
+                    return False, f"命令包含危险操作: {pattern_str}"
+
+        # 3. 分割命令段（管道、分号、&、换行）
         try:
-            # 分割管道
-            segments = re.split(r'[|;&]', command)
-            for segment in segments:
-                segment = segment.strip()
-                if not segment:
-                    continue
-                parts = shlex.split(segment)
-                if not parts:
-                    continue
-                main_cmd = parts[0].lower()
-                # 允许路径形式的命令
-                cmd_base = main_cmd.split('/')[-1].split('\\')[-1]
-                if cmd_base not in self.allowed_commands and main_cmd not in self.allowed_commands:
-                    return False, f"命令 '{cmd_base}' 不在白名单内"
+            segments = re.split(r'[|;&\n]', cmd_str)
+        except re.error:
+            segments = [cmd_str]
 
-        except ValueError as e:
-            return False, f"命令解析失败: {str(e)}"
+        for segment in segments:
+            segment = segment.strip()
+            if not segment:
+                continue
+
+            # 提取主命令，移除重定向目标和参数
+            main_cmd_part = segment
+
+            # 移除输出重定向 (> , >>, 2> 等) 之后的部分
+            main_cmd_part = re.split(r'\s*>\s*', main_cmd_part, maxsplit=1)[0]
+            main_cmd_part = re.split(r'\s*>>\s*', main_cmd_part, maxsplit=1)[0]
+            main_cmd_part = re.split(r'\s*2>\s*', main_cmd_part, maxsplit=1)[0]
+            main_cmd_part = re.split(r'\s*&>\s*', main_cmd_part, maxsplit=1)[0]
+
+            # 移除输入重定向
+            main_cmd_part = re.split(r'\s*<\s*', main_cmd_part, maxsplit=1)[0]
+
+            # 提取命令名称
+            try:
+                parts = shlex.split(main_cmd_part)
+            except ValueError:
+                parts = main_cmd_part.split()
+
+            if not parts:
+                continue
+
+            main_cmd = parts[0].lower()
+            cmd_base = re.sub(r'^.*[/\\]', '', main_cmd)
+
+            # 4. 检查是否在白名单
+            if cmd_base not in self.allowed_commands and main_cmd not in self.allowed_commands:
+                return False, f"命令 '{cmd_base}' 不在安全白名单内"
+
+            # 5. 特定命令的额外检查
+            if cmd_base in ["rm", "del"]:
+                args = ' '.join(parts[1:]).lower()
+                if any(flag in args for flag in ['-r', '-rf', '-fr', '--recursive', '--force', '/s', '/q']):
+                    return False, f"{cmd_base} 命令使用了危险的递归/强制删除选项"
+
+            if cmd_base == "chmod" and any(arg in parts[1:] for arg in ['+x', '+w', '+s', 'u+s', 'g+s']):
+                return False, "chmod 修改权限不被允许"
+
+            # 6. 检查子shell、命令替换、后台执行
+            if any(c in segment for c in ['(', ')', '`', '$(']):
+                return False, "命令包含子shell或命令替换，不被允许"
+
+            if segment.strip().endswith('&'):
+                return False, "后台执行不被允许"
 
         return True, ""
 
@@ -463,22 +552,18 @@ class ToolRegistry:
         if cls._initialized:
             return
 
-        # Resolve config
-        has_tool_cfg = (
-            config is not None 
-            and hasattr(config, 'tool') 
-            and config.tool is not None
-        )
-        
-        if has_tool_cfg:
+        # 设置默认值
+        safe_dirs = ["./", "./tmp"]
+        allowed_commands = ShellTool.ALLOWED_COMMANDS
+        enabled_tools = ["file_read", "file_write", "shell"]
+
+        # 从配置中获取值（如果存在且有效）
+        if config is not None and hasattr(config, 'tool') and config.tool is not None:
             tool_cfg = config.tool
-            safe_dirs = tool_cfg.safe_dirs
-            allowed_commands = tool_cfg.allowed_commands
-            enabled_tools = tool_cfg.enabled if hasattr(tool_cfg, 'enabled') else []
-        else:
-            safe_dirs = ["./", "./tmp"]
-            allowed_commands = ShellTool.ALLOWED_COMMANDS
-            enabled_tools = ["file_read", "file_write", "shell"]
+            safe_dirs = getattr(tool_cfg, 'safe_dirs', safe_dirs)
+            allowed_commands = getattr(tool_cfg, 'allowed_commands', allowed_commands)
+            if hasattr(tool_cfg, 'enabled') and tool_cfg.enabled:
+                enabled_tools = tool_cfg.enabled
 
         if "file_read" in enabled_tools:
             cls.register(FileReadTool(safe_dirs=safe_dirs))

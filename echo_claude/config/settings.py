@@ -134,6 +134,19 @@ class AppConfig(BaseSettings):
             if sp.startswith("~"):
                 data["session"]["save_path"] = str(Path(sp).expanduser())
 
+        # 确保每个提供者配置包含 name 字段（将字典键作为 name）
+        if "providers" in data and isinstance(data["providers"], dict):
+            providers = {}
+            for name, config_dict in data["providers"].items():
+                if isinstance(config_dict, dict):
+                    # 复制并添加 name 字段
+                    config_dict = dict(config_dict)
+                    config_dict["name"] = name
+                    providers[name] = config_dict
+                else:
+                    providers[name] = config_dict
+            data["providers"] = providers
+
         return cls(**data)
 
     def save_to_yaml(self, config_path: Path) -> None:

@@ -115,9 +115,15 @@ class EchoClaudeTUI(App):
         try:
             pn = self.config.default_provider
             pc = self.config.get_provider(pn)
-            if not pc: return
+            if not pc:
+                self.agent = None
+                self._error(f"未找到提供者配置: {pn}")
+                return
             PC = get_provider_class(pn)
-            if not PC: return
+            if not PC:
+                self.agent = None
+                self._error(f"不支持的提供者: {pn}")
+                return
             p = PC(api_key=pc.api_key, base_url=pc.base_url, models=pc.models)
             self.session_manager = SessionManager(save_path=Path(self.config.session.save_path).expanduser())
             model = self.config.default_model or (pc.models[0] if pc.models else None)
@@ -125,7 +131,8 @@ class EchoClaudeTUI(App):
                                session=self.session_manager.get_or_create(), config=self.config,
                                system_prompt=get_system_prompt(self.config.language))
         except Exception as e:
-            self._error(f"init: {e}")
+            self.agent = None
+            self._error(f"初始化失败: {e}")
 
     def _show_welcome(self):
         self.query_one("#chat-log", RichLog).write(

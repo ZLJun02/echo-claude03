@@ -191,7 +191,7 @@ class Agent:
 
                 current_messages.append(ProviderMessage(
                     role="assistant",
-                    content=content,
+                    content=content or accumulated,
                     tool_calls=tool_calls,
                 ))
 
@@ -211,17 +211,17 @@ class Agent:
                             content=f"工具执行错误: {e}",
                             tool_call_id=tc.id,
                         ))
-                # Reset accumulated text for next iteration after tool calls
-                accumulated = ""
-                content = ""
+                # 银行改：继续下一轮迭代，accumulated保留当前轮的内容
                 continue
             else:
                 # 无工具调用，对话结束
-                if self.session:
+                if self.session and accumulated:
                     self.session.add_message("assistant", accumulated)
-                return
+                break
 
-        if self.session:
+        # 循环结束后，如果有session且仍有未保存的内容，保存它
+        # （通常是因为达到max_iterations限制）
+        if self.session and accumulated and not buffered_tool_calls:
             self.session.add_message("assistant", accumulated)
 
     def _execute_tool_calls(self, tool_calls: List[ToolCall]) -> List[Dict]:

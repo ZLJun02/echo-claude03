@@ -10,13 +10,8 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 from rich.console import Console
 
-
-class Message(BaseModel):
-    """对话消息"""
-    role: str  # system, user, assistant, tool
-    content: str
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    metadata: Dict = Field(default_factory=dict)
+# 使用统一的消息模型（从core.message导入）
+from echo_claude.core.message import Message
 
 
 class Session(BaseModel):
