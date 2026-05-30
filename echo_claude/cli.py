@@ -307,6 +307,8 @@ def tool(
             console.print("[red]请指定工具名称[/red]")
             return
         try:
+            # 确保工具注册表已初始化
+            ToolRegistry.initialize(get_config())
             result = ToolRegistry.execute(tool_name, args or [])
             console.print(Panel.fit(f"[bold]工具执行结果[/bold]\n{result}"))
         except Exception as e:
@@ -320,8 +322,12 @@ def shell(
     """直接执行Shell命令（安全沙箱内）"""
     from .core.tools import ShellTool
     try:
-        tool = ShellTool()
-        result = tool.execute(command, timeout=30)
+        cfg = get_config()
+        tool = ShellTool(
+            allowed_commands=cfg.tool.allowed_commands,
+            max_timeout=cfg.tool.max_shell_timeout
+        )
+        result = tool.execute(command)
         console.print(result)
     except Exception as e:
         console.print(f"[bold red]执行失败:[/bold red] {e}")

@@ -10,6 +10,8 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import yaml
 import os
+import sys
+import sys
 
 # 尝试加载 .env 文件
 try:
@@ -50,15 +52,32 @@ class ProviderConfig(BaseSettings):
     model_config = SettingsConfigDict(extra="allow")
 
 
+
+
+
+
+def _get_default_allowed_commands() -> List[str]:
+    """根据操作系统返回合适的默认允许命令列表"""
+    if sys.platform == "win32":
+        # Windows 常用命令
+        return [
+            "dir", "type", "findstr", "echo", "copy", "move", "mkdir",
+            "python", "python3", "py", "pytest", "pytest3",
+            "git", "diff", "where", "path"
+        ]
+    else:
+        # Unix/Linux 常用命令
+        return [
+            "ls", "grep", "find", "cat", "head", "tail", "wc",
+            "python", "python3", "pytest", "pytest3",
+            "git", "diff"
+        ]
+
 class ToolConfig(BaseSettings):
     """工具配置"""
     enabled: List[str] = ["file_read", "file_write", "shell"]
-    safe_dirs: List[str] = ["./", "./tmp"]
-    allowed_commands: List[str] = [
-        "ls", "grep", "find", "cat", "head", "tail",
-        "python", "python3", "pytest", "pytest3",
-        "git", "diff", "wc"
-    ]
+    safe_dirs: List[str] = ["./", "./tmp", ".."]
+    allowed_commands: List[str] = Field(default_factory=_get_default_allowed_commands)
     max_shell_timeout: int = 30
     allow_shell: bool = True
     allow_file_write: bool = True
@@ -221,7 +240,7 @@ def get_env_overrides() -> Dict[str, Any]:
             if providers_key not in overrides:
                 overrides[providers_key] = {}
             if provider_name not in overrides[providers_key]:
-                overrides[providers_key][provider_name] = {}
+                overrides[providers_key][provider_name] = {"name": provider_name}
             overrides[providers_key][provider_name][field] = value
         elif len(path) == 1:
             # 顶层配置

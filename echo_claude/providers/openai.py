@@ -130,6 +130,8 @@ class OpenAIProvider(BaseProvider):
         response = self._request_with_retry("POST", url, headers, payload, stream=False)
         data = response.json()
 
+        if not data.get("choices"):
+            raise ProviderError(f"No choices in response: {data}")
         choice = data["choices"][0]
         message_data = choice["message"]
         content = message_data.get("content", "") or ""
@@ -185,6 +187,9 @@ class OpenAIProvider(BaseProvider):
                         break
                     try:
                         data = json.loads(data_str)
+                        if not data.get("choices"):
+                            logger.warning("No choices in response, skipping: %s", data)
+                            continue
                         delta = data["choices"][0]["delta"]
                         content = delta.get("content") or ""
                         tool_calls = []

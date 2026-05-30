@@ -526,11 +526,15 @@ class ToolRegistry:
         }
 
     @classmethod
-    def execute(cls, tool_name: str, arguments: Dict) -> Any:
+    def execute(cls, tool_name: str, arguments: Any) -> Any:
         """执行工具"""
         tool = cls.get_tool(tool_name)
         if not tool:
             raise ValueError(f"工具不存在: {tool_name}")
+
+        # 支持 list 参数（来自 CLI 的 args 列表）
+        if isinstance(arguments, list):
+            arguments = " ".join(arguments)
 
         if isinstance(arguments, str):
             try:
