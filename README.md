@@ -1,4 +1,4 @@
-# Echo Claude-TUI
+# Echo Claude-TUI/CLI
 # 回音壁 
 
 
